@@ -12,7 +12,9 @@ import (
 func main() {
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Connecting To Websocket")
-		c, err := websocket.Accept(w, r, nil)
+		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			OriginPatterns: []string{"localhost:5173"},
+		})
 		if err != nil {
 			log.Println(err)
 			return
@@ -22,14 +24,18 @@ func main() {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 		defer cancel()
 
-		var v interface{}
-		err = wsjson.Read(ctx, c, &v)
-		if err != nil {
-			log.Println(err)
-			return
-		}
+		for {
+			var v interface{}
+			err = wsjson.Read(ctx, c, &v)
+			if err != nil {
+				log.Println(err)
+				return
+			}
 
-		log.Println(v)
+			wsjson.Write(ctx, c, "Fuck You")
+			log.Println(v)
+
+		}
 
 		c.Close(websocket.StatusNormalClosure, "")
 	})
