@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+	log.Println("Chat server started...")
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Connecting To Websocket")
 		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
@@ -21,8 +22,30 @@ func main() {
 		}
 		defer c.CloseNow()
 
-		ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second*45)
 		defer cancel()
+
+		for {
+			select {
+			case <- ctx.Done():
+				log.Println("Websocket connection timed out:", ctx.Err())
+				return
+
+			default:
+				messageType, message, err := c.Reader(ctx)
+				if err != nil {
+					log.Println("Websocket read error:", err)
+					return
+				}
+
+				log.Printf("Receved message: %s (Type: %d)", message, messageType)
+
+				// Cancel the existing context
+				cancel()
+				ctx, cancel = context.WithTimeout(r.Context(), time.Second*45)
+				defer cancel()
+			}
+		}
 
 		for {
 			var v interface{}
