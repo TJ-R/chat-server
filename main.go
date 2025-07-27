@@ -9,6 +9,11 @@ import (
 	"net/http"
 )
 
+type Message struct {
+	Msg string `json:"message"`
+	Error bool `json:"error"`
+}
+
 func main() {
 	log.Println("Chat server started...")
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,13 +37,18 @@ func main() {
 				return
 
 			default:
-				messageType, message, err := c.Reader(ctx)
+				var msg Message	
+				err = wsjson.Read(ctx, c, &msg)
+				log.Println(msg)
 				if err != nil {
 					log.Println("Websocket read error:", err)
 					return
 				}
 
-				log.Printf("Receved message: %s (Type: %d)", message, messageType)
+				log.Printf("Recieved message %v\n", msg.Msg)
+
+				wsjson.Write(ctx, c, "Fuck You")
+				
 
 				// Cancel the existing context
 				cancel()
@@ -46,21 +56,6 @@ func main() {
 				defer cancel()
 			}
 		}
-
-		for {
-			var v interface{}
-			err = wsjson.Read(ctx, c, &v)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			wsjson.Write(ctx, c, "Fuck You")
-			log.Println(v)
-
-		}
-
-		c.Close(websocket.StatusNormalClosure, "")
 	})
 
 	err := http.ListenAndServe("localhost:8080", fn)
